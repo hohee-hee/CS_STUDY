@@ -2,7 +2,7 @@
 
 참고자료 : [gyoogle/tech-interview-for-developer](https://github.com/gyoogle/tech-interview-for-developer)
 
-> 📇 목차<br><br> [1. 운영체제](#🖥️-1-운영체제)<br> &emsp; [1) 의미](#1-의미)<br> &emsp; [2) 역할](#2-역할)<br> &emsp; [3) 프로세스와 스레드](#3-프로세스와-스레드)<br> &emsp; [4) 프로세스의 주소공간](#4-프로세스의-주소-공간)<br> &emsp; [5) 인터럽트 (Interrupt)](#5-인터럽트-interrupt)<br>
+> 📇 목차<br><br> [1. 운영체제](#🖥️-1-운영체제)<br> &emsp; [1) 의미](#1-의미)<br> &emsp; [2) 역할](#2-역할)<br> &emsp; [3) 프로세스와 스레드](#3-프로세스와-스레드)<br> &emsp; [4) 프로세스의 주소공간](#4-프로세스의-주소-공간)<br> &emsp; [5) 인터럽트 (Interrupt)](#5-인터럽트-interrupt)<br> &emsp; [6) System Call](#6-system-call)<br>
 
 ## 🖥️ 1. 운영체제
 
@@ -204,3 +204,123 @@ Stack과 데이터를 나눈 이유는, 스택 구조의 특성과 전역 변수
 ---
 
 ### 6) System Call
+
+**프로세스 생성과 제어를 위한 시스템 콜 : `fork()`, `exec()`, `wait()`**
+
+#### (1) fork()
+
+**새로운 프로세스를 생성할 때 사용**<br>
+<span style="color:gray">그러나 이상한 방식</span>
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+    printf("pid : %d", (int) getpid()); // pid : 29146
+
+    int rc = fork();					// 주목
+
+    if (rc < 0) {
+        exit(1);
+    }									// (1) fork 실패
+    else if (rc == 0) {					// (2) child 인 경우 (fork 값이 0)
+        printf("child (pid : %d)", (int) getpid());
+    }
+    else {								// (3) parent case
+        printf("parent of %d (pid : %d)", rc, (int)getpid());
+    }
+}
+```
+
+> 출력값 <br>
+> pid : 29146<br>
+> parent of 29147 (pid : 29146) <br>
+> child (pid : 29147) <br> <span style="color:gray">child와 parent의 출력 순서는 스케줄러가 결정하는 일로 확신할 수 없음</span>
+
+- PID : 프로세스 식별자. UNIX 시스템에서는 PID는 프로세스에겨 명령을 할 때 사용
+
+`fork()`가 실행되는 순간 프로세스가 하나 더 생기는데, 이 때 생긴 프로세스(Child)는 fork를 만든 프로세스(Parent)와 거의 동일한 복사본을 갖게 된다. 이때 OS는 위와 똑같은 2개의 프로그램이 동작한다고 생각하고 fork()가 return 될 차례라고 생각한다. 그 때문에 새로 생성된 Process(child)는 main에서 시작하지 않고 if문부터 시작하게 된다.
+
+parent와 child 프로세스의 차이점 : `fork()값이 다르다`
+
+> Parent의 fork 값 === Child의 fork 값<br>
+> Child의 fork 값 === 0
+
+#### (2) wait()
+
+**child 프로세스가 종료될 때까지 기다리는 작업**
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main(int argc, char *argv[]) {
+    printf("pid : %d", (int) getpid()); // pid : 29146
+
+    int rc = fork();					// 주목
+
+    if (rc < 0) {
+        exit(1);
+    }									// (1) fork 실패
+    else if (rc == 0) {					// (2) child 인 경우 (fork 값이 0)
+        printf("child (pid : %d)", (int) getpid());
+    }
+    else {								// (3) parent case
+        int wc = wait(NULL)				// 추가된 부분
+        printf("parent of %d (wc : %d / pid : %d)", wc, rc, (int)getpid());
+    }
+}
+```
+
+> 출력값 <br>
+> pid : 29146<br>
+> child (pid : 29147) <br>
+> parent of 29147 (wc : 29147 / pid : 29146) <br>
+
+`wait()`를 통해서 child의 실행이 끝날 때까지 기다린다. parent가 먼저 실행되더라도 `wait()`는 child가 끝날 때까지 return 하지 않아 반드시 child가 먼저 실행된다.
+
+#### (3) exec()
+
+**child에서는 parent와 다른 동작을 하고 싶을 때 exec() 사용**
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main(int argc, char *argv[]) {
+    printf("pid : %d", (int) getpid()); // pid : 29146
+
+    int rc = fork();					// 주목
+
+    if (rc < 0) {
+        exit(1);
+    }									// (1) fork 실패
+    else if (rc == 0) {					// (2) child 인 경우 (fork 값이 0)
+        printf("child (pid : %d)", (int) getpid());
+        char *myargs[3];
+        myargs[0] = strdup("wc");		// 내가 실행할 파일 이름
+        myargs[1] = strdup("p3.c");		// 실행할 파일에 넘겨줄 argument
+        myargs[2] = NULL;				// end of array
+        execvp(myarges[0], myargs);		// wc 파일 실행.
+        printf("this shouldn't print out") // 실행되지 않음.
+    }
+    else {								// (3) parent case
+        int wc = wait(NULL)				// 추가된 부분
+        printf("parent of %d (wc : %d / pid : %d)", wc, rc, (int)getpid());
+    }
+}
+```
+
+`exec()` 실행 과정
+
+1. `execvp(실행 파일, 전달인자)`는 code segment 영역에 실행 파일의 코드를 읽어와서 덮어 씌운다.
+2. heap, stack, 다른 메모리 영역이 초기화 된다.
+3. OS는 그냥 실행한다.
+
+새로운 프로세스를 생성하지 않고 현재 프로그램에 wc라는 파일을 실행한다. 따라서 `execep()` 이후의 부분은 실행되지 않는다.
