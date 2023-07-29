@@ -14,8 +14,8 @@
  &emsp; [4) 프로세스의 주소공간](#4-프로세스의-주소-공간)<br>
  &emsp; [5) 인터럽트 (Interrupt)](#5-인터럽트-interrupt)<br> 
  &emsp; [6) System Call](#6-system-call)<br>
- &emsp; [7) PCB와 Context Switching](#7-pcb와-context-switching)
- &emsp; [8) IPC(Inter Process Communication)](#8-ipcinter-process-communication) <br>
+ &emsp; [7) PCB와 Context Switching](#7-pcb와-context-switching)<br>
+ &emsp; [8) IPC(Inter Process Communication)](#8-ipcinter-process-communication)<br>
  &emsp; [9) CPU 스케줄링](#9-cpu-스케줄링)<br>
  &emsp; [10) 데드락(DeadLock)](#10-데드락deadlock)<br>
  &emsp; [11) Race Condition](#11-race-condition)<br>
